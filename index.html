@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Angela Stores - Inventory Dashboard</title>
+    <!-- Include Chart.js and jsPDF libraries from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        /* --- Global Styles & Resets --- */
+        :root {
+            --primary-color: #005f73;
+            --secondary-color: #0a9396;
+            --background-color: #b2f023;
+            --text-color: #15032e;
+            --card-bg: #ffffff;
+            --border-color: #e0e0e0;
+            --shadow: 0 4px 8px rgba(0,0,0,0.1);
+            --green: #2d9a47;
+            --yellow: #ffb703;
+            --red: #d00000;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* --- Login Screen --- */
+        #loginScreen {
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+        #loginScreen h1 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+        .role-button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            background-color: var(--secondary-color);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .role-button:hover {
+            background-color: var(--primary-color);
+        }
+        #adminPinContainer input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            text-align: center;
+            font-size: 18px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+        }
+        #pinError {
+            color: var(--red);
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        /* --- Main App Container --- */
+        #appContainer {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .main-header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .main-header h1 {
+            font-size: 24px;
+        }
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        #currentUserRole {
+            font-style: italic;
+        }
+        
+        #menuToggle {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        #logoutButton {
+            background: var(--red);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* --- Main Content & Pages --- */
+        .main-content {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .page {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Dropdown Menu --- */
+        #mainMenu {
+            position: absolute;
+            top: 60px;
+            right: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            z-index: 1000;
+            overflow: hidden;
+        }
+        #mainMenu a {
+            display: block;
+            padding: 12px 25px;
+            color: var(--primary-color);
+            text-decoration: none;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.2s;
+        }
+        #mainMenu a:last-child {
+            border-bottom: none;
+        }
+        #mainMenu a:hover {
+            background-color: #f0f8ff;
+        }
+        
+        /* --- General UI Components (Cards, Buttons, Tables) --- */
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-card {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border-left: 5px solid var(--secondary-color);
+        }
+        .stat-card h3 {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .stat-card p {
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        .stat-card.profit { border-color: var(--green); }
+        .stat-card.profit p { color: var(--green); }
+        .stat-card.loss { border-color: var(--red); }
+        .stat-card.loss p { color: var(--red); }
+        
+        .main-button {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        .main-button:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .action-button {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            margin-right: 5px;
+        }
+        .edit-btn { background-color: var(--secondary-color); }
+        .delete-btn { background-color: var(--red); }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        .stock-indicator {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .stock-green { background-color: var(--green); }
+        .stock-yellow { background-color: var(--yellow); }
+        .stock-red { background-color: var(--red); }
+        
+        .filter-bar {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .filter-bar input, .filter-bar select, .filter-bar button {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+        }
+
+        /* --- Modal Styles --- */
+        .modal {
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #888;
+        }
+        .modal-form .form-group {
+            margin-bottom: 15px;
+        }
+        .modal-form label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .modal-form input, .modal-form select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+        }
+        .salary-field {
+            position: relative;
+        }
+        .salary-field input { padding-right: 40px; }
+        .toggle-salary-visibility {
+            position: absolute;
+            right: 10px;
+            top: 35px;
+            cursor: pointer;
+        }
+
+        /* --- Receipt Modal --- */
+        #receiptModalContent {
+            font-family: 'Courier New', Courier, monospace;
+            padding: 20px;
+            border: 1px dashed #333;
+        }
+        #receiptModalContent h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+        #receiptModalContent p {
+            margin: 5px 0;
+        }
+        #receiptItemsTable {
+            width: 100%;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        #receiptItemsTable th, #receiptItemsTable td {
+            padding: 8px;
+            text-align: left;
+        }
+        #receiptTotal {
+            text-align: right;
+            font-weight: bold;
+            font-size: 18px;
+            margin-top: 20px;
+        }
+        .receipt-buttons {
+            text-align: center;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ======== LOGIN SCREEN ======== -->
+    <div id="loginScreen">
+        <h1>Angela Stores Dashboard</h1>
+        <p>Select Your Role</p>
+        <button class="role-button" onclick="selectRole('admin')">Admin</button>
+        <button class="role-button" onclick="selectRole('manager')">Manager</button>
+        <button class="role-button" onclick="selectRole('salesRep')">Sales Rep</button>
+        <button class="role-button" onclick="selectRole('auditor')">Auditor</button>
+        <div id="adminPinContainer" class="hidden">
+            <input type="password" id="adminPinInput" placeholder="Enter 4-Digit PIN" maxlength="4" pattern="\d*">
+            <p id="pinError" class="hidden">Invalid PIN. Try again.</p>
+        </div>
+    </div>
+
+    <!-- ======== MAIN APPLICATION ======== -->
+    <div id="appContainer" class="hidden">
+        <!-- Header -->
+        <header class="main-header">
+            <h1>Angela Stores</h1>
+            <div class="header-controls">
+                <span id="currentUserRole"></span>
+                <button id="logoutButton">Logout</button>
+                <button id="menuToggle">☰</button>
+            </div>
+        </header>
+
+        <!-- Dropdown Menu -->
+        <div id="mainMenu" class="hidden">
+            <a href="#" class="menu-link" data-page="overviewPage">Dashboard Overview</a>
+            <a href="#" class="menu-link admin-only manager-only" data-page="productManagementPage">Product Management</a>
+            <a href="#" class="menu-link admin-only manager-only salesRep-only" data-page="salesManagementPage">Sales Management</a>
+            <a href="#" class="menu-link all-users" data-page="stockLevelPage">Stock Level Monitoring</a>
+            <a href="#" class="menu-link admin-only manager-only auditor-only" data-page="plTrackerPage">Profit & Loss Tracker</a>
+            <a href="#" class="menu-link admin-only manager-only auditor-only" data-page="purchaseHistoryPage">Purchase History Log</a>
+            <a href="#" class="menu-link admin-only" data-page="capitalTrackerPage">Capital Resources Tracker</a>
+            <a href="#" class="menu-link admin-only manager-only" data-page="expensesManagerPage">Monthly Expenses Manager</a>
+            <a href="#" class="menu-link admin-only manager-only auditor-only" data-page="reportsPage">Reports & Analytics</a>
+            <a href="#" class="menu-link admin-only" data-page="adminSettingsPage">Admin Settings</a>
+        </div>
+        
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- PAGE: Overview -->
+            <div id="overviewPage" class="page">
+                <h2>Dashboard Overview</h2>
+                <div class="overview-grid">
+                    <div class="stat-card">
+                        <h3>Total Goods in Stock</h3>
+                        <p id="totalStockCount">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Goods Sold (Units)</h3>
+                        <p id="totalSoldCount">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Sales Amount</h3>
+                        <p id="totalSalesValue">₦0</p>
+                    </div>
+                    <div class="stat-card profit">
+                        <h3>Cumulative Profit</h3>
+                        <p id="cumulativeProfit">₦0</p>
+                    </div>
+                </div>
+                <div class="card" style="margin-top: 20px;">
+                    <h3>Trends</h3>
+                    <canvas id="trendsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- PAGE: Product Management (Admin/Manager) -->
+            <div id="productManagementPage" class="page hidden">
+                <h2>Product Management</h2>
+                <button id="addProductBtn" class="main-button">Add New Product</button>
+                <div class="filter-bar">
+                    <input type="text" id="productSearchInput" placeholder="Search by product name...">
+                </div>
+                <div style="overflow-x:auto;">
+                    <table id="productTable">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Buying Price</th>
+                                <th>Selling Price</th>
+                                <th>In Stock</th>
+                                <th>Sold</th>
+                                <th>Expiry Date</th>
+                                <th>Supplier</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody><!-- Product rows will be inserted here --></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- PAGE: Sales Management (Admin/Manager/Sales Rep) -->
+            <div id="salesManagementPage" class="page hidden">
+                <h2>Sales Management</h2>
+                <button id="recordSaleBtn" class="main-button">Record New Sale</button>
+                 <div class="filter-bar">
+                    <input type="text" id="salesSearchInput" placeholder="Search by product or invoice...">
+                    <input type="date" id="salesDateFilter">
+                    <button onclick="renderSales()">Filter</button>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table id="salesTable">
+                        <thead>
+                            <tr>
+                                <th>Invoice #</th>
+                                <th>Date</th>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Total Amount</th>
+                                <th>Profit</th>
+                                <th>Customer</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody><!-- Sales rows will be inserted here --></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- PAGE: Stock Level Monitoring -->
+            <div id="stockLevelPage" class="page hidden">
+                <h2>Stock Level Monitoring</h2>
+                <div style="overflow-x:auto;">
+                    <table id="stockLevelTable">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Product Name</th>
+                                <th>Quantity in Stock</th>
+                                <th>Stock Level</th>
+                            </tr>
+                        </thead>
+                        <tbody><!-- Stock level rows will be inserted here --></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- PAGE: Profit & Loss Tracker (Admin/Manager/Auditor) -->
+            <div id="plTrackerPage" class="page hidden">
+                <h2>Profit and Loss Tracker</h2>
+                <div class="filter-bar">
+                    <select id="plProductFilter"></select>
+                    <input type="month" id="plMonthFilter">
+                    <button onclick="renderPLTracker()">View Report</button>
+                </div>
+                <div class="overview-grid">
+                    <div class="stat-card"><h3>Total Revenue</h3><p id="plTotalRevenue">₦0</p></div>
+                    <div class="stat-card"><h3>Total Cost of Goods</h3><p id="plTotalCost">₦0</p></div>
+                    <div class="stat-card"><h3>Total Expenses</h3><p id="plTotalExpenses">₦0</p></div>
+                    <div class="stat-card" id="plNetProfitCard"><h3>Net Profit</h3><p id="plNetProfit">₦0</p></div>
+                </div>
+            </div>
+
+            <!-- PAGE: Purchase History Log (Admin/Manager/Auditor) -->
+            <div id="purchaseHistoryPage" class="page hidden">
+                <h2>Purchase History Log</h2>
+                <button id="downloadPurchasePdfBtn" class="main-button">Download as PDF</button>
+                <button id="downloadPurchaseCsvBtn" class="main-button">Download as Excel (CSV)</button>
+                <div style="overflow-x:auto;">
+                    <table id="purchaseHistoryTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Product Name</th>
+                                <th>Quantity</th>
+                                <th>Cost per Item</th>
+                                <th>Total Cost</th>
+                                <th>Supplier</th>
+                                <th>Payment Mode</th>
+                            </tr>
+                        </thead>
+                        <tbody><!-- Purchase rows will be inserted here --></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- PAGE: Capital Tracker (Admin) -->
+            <div id="capitalTrackerPage" class="page hidden">
+                <h2>Capital Resources Tracker</h2>
+                <div class="card">
+                    <form id="capitalForm">
+                        <div class="form-group">
+                            <label for="capitalChangeType">Transaction Type</label>
+                            <select id="capitalChangeType" required>
+                                <option value="add">Add Capital (Investment)</option>
+                                <option value="withdraw">Withdrawal/Deduction</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="capitalAmount">Amount (₦)</label>
+                            <input type="number" id="capitalAmount" min="0" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="capitalDescription">Description</label>
+                            <input type="text" id="capitalDescription" required>
+                        </div>
+                        <button type="submit" class="main-button">Record Transaction</button>
+                    </form>
+                </div>
+                <div class="overview-grid">
+                    <div class="stat-card"><h3>Initial Capital</h3><p id="initialCapitalDisplay">₦0</p></div>
+                    <div class="stat-card"><h3>Added Capital</h3><p id="addedCapitalDisplay">₦0</p></div>
+                    <div class="stat-card"><h3>Withdrawals</h3><p id="withdrawnCapitalDisplay">₦0</p></div>
+                    <div class="stat-card profit"><h3>Current Balance</h3><p id="balanceCapitalDisplay">₦0</p></div>
+                </div>
+            </div>
+            
+            <!-- PAGE: Expenses Manager (Admin/Manager) -->
+            <div id="expensesManagerPage" class="page hidden">
+                <h2>Monthly Expenses Manager</h2>
+                <button id="addExpenseBtn" class="main-button">Add New Expense</button>
+                <div style="overflow-x:auto;">
+                    <table id="expensesTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Category</th>
+                                <th>Description/Staff</th>
+                                <th>Amount</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody><!-- Expense rows will be inserted here --></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- PAGE: Reports & Analytics (Admin/Manager/Auditor) -->
+            <div id="reportsPage" class="page hidden">
+                <h2>Reports & Analytics</h2>
+                <div class="card">
+                    <h3>Generate Monthly Report</h3>
+                    <div class="filter-bar">
+                        <input type="month" id="reportMonthSelector">
+                        <button id="generateReportBtn" class="main-button">Generate & Download</button>
+                    </div>
+                    <p>Select a month to generate a comprehensive PDF report including sales, profits, and expenses.</p>
+                </div>
+            </div>
+            
+            <!-- PAGE: Admin Settings (Admin) -->
+            <div id="adminSettingsPage" class="page hidden">
+                <h2>Admin Settings</h2>
+                <div class="card">
+                    <h3>Change Admin PIN</h3>
+                    <form id="changePinForm">
+                        <div class="form-group">
+                            <label for="currentPin">Current 4-Digit PIN</label>
+                            <input type="password" id="currentPin" maxlength="4" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="newPin">New 4-Digit PIN</label>
+                            <input type="password" id="newPin" maxlength="4" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirmNewPin">Confirm New PIN</label>
+                            <input type="password" id="confirmNewPin" maxlength="4" required>
+                        </div>
+                        <button type="submit" class="main-button">Change PIN</button>
+                        <p id="pinChangeStatus" style="margin-top:10px;"></p>
+                    </form>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- ======== MODALS ======== -->
+
+    <!-- Product Add/Edit Modal -->
+    <div id="productModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2 id="productModalTitle">Add Product</h2>
+            <form id="productForm" class="modal-form">
+                <input type="hidden" id="productId">
+                <div class="form-group">
+                    <label for="productName">Product Name</label>
+                    <input type="text" id="productName" required>
+                </div>
+                <div class="form-group">
+                    <label for="productCategory">Category</label>
+                    <input type="text" id="productCategory" required>
+                </div>
+                <div class="form-group">
+                    <label for="buyingPrice">Buying Price (₦)</label>
+                    <input type="number" id="buyingPrice" min="0" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="sellingPrice">Selling Price (₦)</label>
+                    <input type="number" id="sellingPrice" min="0" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="quantityInStock">Quantity In Stock</label>
+                    <input type="number" id="quantityInStock" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="expiryDate">Expiry Date (Optional)</label>
+                    <input type="date" id="expiryDate">
+                </div>
+                <div class="form-group">
+                    <label for="supplierInfo">Supplier Information (Optional)</label>
+                    <input type="text" id="supplierInfo">
+                </div>
+                <div class="form-group">
+                    <label for="purchaseDate">Date of Purchase</label>
+                    <input type="date" id="purchaseDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="purchasePaymentMode">Payment Mode</label>
+                    <select id="purchasePaymentMode">
+                        <option value="Cash">Cash</option>
+                        <option value="Transfer">Bank Transfer</option>
+                        <option value="POS">POS</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="main-button">Save Product</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Sale Record Modal -->
+    <div id="saleModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2>Record a Sale</h2>
+            <form id="saleForm" class="modal-form">
+                <div class="form-group">
+                    <label for="saleProduct">Product</label>
+                    <select id="saleProduct" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="saleQuantity">Quantity</label>
+                    <input type="number" id="saleQuantity" min="1" required>
+                    <small id="availableStockNotice" style="color: #555;"></small>
+                </div>
+                <div class="form-group">
+                    <label for="customerName">Customer Name (for receipt)</label>
+                    <input type="text" id="customerName" placeholder="Enter customer's name" required>
+                </div>
+                <button type="submit" class="main-button">Complete Sale & Print Receipt</button>
+                <p id="saleError" style="color:var(--red); margin-top:10px;"></p>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Expense Add/Edit Modal -->
+    <div id="expenseModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h2 id="expenseModalTitle">Add Expense</h2>
+            <form id="expenseForm" class="modal-form">
+                <input type="hidden" id="expenseId">
+                <div class="form-group">
+                    <label for="expenseDate">Date</label>
+                    <input type="date" id="expenseDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="expenseCategory">Category</label>
+                    <select id="expenseCategory" required>
+                        <option value="Rent">Rent</option>
+                        <option value="Utilities">Utilities</option>
+                        <option value="Salaries">Salaries</option>
+                        <option value="Miscellaneous">Miscellaneous</option>
+                    </select>
+                </div>
+                <div id="staffDetailsContainer" class="form-group hidden">
+                    <label for="staffName">Staff Name</label>
+                    <input type="text" id="staffName">
+                    <label for="staffId">Staff ID</label>
+                    <input type="text" id="staffId">
+                </div>
+                <div class="form-group salary-field">
+                    <label for="expenseAmount">Amount (₦)</label>
+                    <input type="password" id="expenseAmount" min="0" step="0.01" required>
+                    <span class="toggle-salary-visibility" onclick="toggleSalaryVisibility(this)">👁️</span>
+                </div>
+                <div class="form-group">
+                    <label for="expenseDescription">Description</label>
+                    <input type="text" id="expenseDescription" placeholder="e.g. 'January Electricity Bill' or Staff Name">
+                </div>
+                <button type="submit" class="main-button">Save Expense</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Receipt Modal -->
+    <div id="receiptModal" class="modal hidden">
+        <div class="modal-content">
+            <div id="receiptModalContent">
+                <h2>Angela Stores - OFFICIAL RECEIPT</h2>
+                <p><strong>Invoice No:</strong> <span id="receiptInvoice"></span></p>
+                <p><strong>Date:</strong> <span id="receiptDate"></span></p>
+                <p><strong>Customer:</strong> <span id="receiptCustomerName"></span></p>
+                <table id="receiptItemsTable">
+                    <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+                    <tbody id="receiptItems"></tbody>
+                </table>
+                <p id="receiptTotal"></p>
+            </div>
+            <div class="receipt-buttons">
+                <button class="main-button" onclick="window.print()">Print Receipt</button>
+                <button class="action-button delete-btn" onclick="closeModal('receiptModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+// --- Polyfill for structuredClone ---
+if (!window.structuredClone) {
+    window.structuredClone = (obj) => JSON.parse(JSON.stringify(obj));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    // =================================================================
+    // =========== STATE MANAGEMENT (DATABASE) & INITIALIZATION ========
+    // =================================================================
+    let db;
+    let currentUser = null;
+    let trendsChart = null;
+
+    const DEFAULT_DB = {
+        products: [],
+        sales: [],
+        purchases: [],
+        expenses: [],
+        capital: {
+            initial: 0,
+            transactions: [], // { type: 'add'/'withdraw', amount: 1000, date: '...', description: '...' }
+        },
+        settings: {
+            adminPin: '1234', // Default PIN
+            branches: ['Branch 1', 'Branch 2', 'Branch 3', 'Branch 4', 'Branch 5']
+        }
+    };
+
+    function loadDatabase() {
+        const data = localStorage.getItem('inventoryAppDB');
+        db = data ? JSON.parse(data) : structuredClone(DEFAULT_DB);
+        // Ensure all keys from default exist
+        for (const key in DEFAULT_DB) {
+            if (!db[key]) {
+                db[key] = structuredClone(DEFAULT_DB[key]);
+            }
+        }
+        // Special check for nested objects
+        if (!db.capital.transactions) {
+            db.capital.transactions = [];
+        }
+    }
+
+    function saveDatabase() {
+        localStorage.setItem('inventoryAppDB', JSON.stringify(db));
+    }
+
+
+    // =================================================================
+    // ======================= AUTHENTICATION ==========================
+    // =================================================================
+    
+    window.selectRole = function(role) {
+        const pinContainer = document.getElementById('adminPinContainer');
+        const pinInput = document.getElementById('adminPinInput');
+        const pinError = document.getElementById('pinError');
+        
+        pinError.classList.add('hidden');
+        
+        if (role === 'admin') {
+            pinContainer.classList.remove('hidden');
+            pinInput.focus();
+            pinInput.onkeyup = function(event) {
+                if (event.key === 'Enter' || pinInput.value.length === 4) {
+                    if (pinInput.value === db.settings.adminPin) {
+                        login(role);
+                    } else {
+                        pinError.classList.remove('hidden');
+                        pinInput.value = '';
+                    }
+                }
+            };
+        } else {
+            pinContainer.classList.add('hidden');
+            pinInput.value = '';
+            login(role);
+        }
+    };
+
+    function login(role) {
+        currentUser = role;
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('appContainer').classList.remove('hidden');
+        document.getElementById('adminPinInput').value = '';
+        document.getElementById('adminPinContainer').classList.add('hidden');
+        
+        setupUIForRole();
+        renderAll();
+    }
+
+    function logout() {
+        currentUser = null;
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('appContainer').classList.add('hidden');
+        document.getElementById('mainMenu').classList.add('hidden');
+    }
+
+    function setupUIForRole() {
+        document.getElementById('currentUserRole').textContent = `Role: ${currentUser.charAt(0).toUpperCase() + currentUser.slice(1)}`;
+        
+        // Show/hide menu items based on role
+        const menuLinks = document.querySelectorAll('#mainMenu a');
+        menuLinks.forEach(link => {
+            const isAllUsers = link.classList.contains('all-users');
+            const isRoleSpecific = link.classList.contains(`${currentUser}-only`);
+            
+            if (isAllUsers || isRoleSpecific) {
+                link.style.display = 'block';
+            } else {
+                link.style.display = 'none';
+            }
+        });
+        
+        // Product Management: Only admin can add/edit/delete. Manager can view.
+        const addProductBtn = document.getElementById('addProductBtn');
+        if (addProductBtn) {
+           addProductBtn.style.display = (currentUser === 'admin') ? 'inline-block' : 'none';
+        }
+
+        // Navigate to the default page for the role
+        if (currentUser === 'salesRep') {
+            showPage('salesManagementPage');
+        } else {
+            showPage('overviewPage');
+        }
+    }
+
+    // =================================================================
+    // ===================== UI RENDERING FUNCTIONS ====================
+    // =================================================================
+
+    function formatNaira(amount) {
+        return `₦${Number(amount).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    
+    function renderAll() {
+        // Render functions are called based on visibility to save performance
+        // But for simplicity in this single-file app, we'll call most of them
+        // A better approach in a larger app is to render only the active page
+        renderOverview();
+        renderProductManagement();
+        renderSales();
+        renderStockLevels();
+        renderPLTracker();
+        renderPurchaseHistory();
+        renderCapitalTracker();
+        renderExpenses();
+        populateFilters();
+    }
+    
+    // --- Render Overview Page ---
+    function renderOverview() {
+        let totalStock = 0;
+        let totalSoldUnits = 0;
+        let totalSalesValue = 0;
+        let cumulativeProfit = 0;
+        
+        db.products.forEach(p => {
+            totalStock += p.quantityInStock;
+            totalSoldUnits += p.quantitySold;
+        });
+        
+        db.sales.forEach(s => {
+            totalSalesValue += s.totalAmount;
+            cumulativeProfit += s.profit;
+        });
+        
+        document.getElementById('totalStockCount').textContent = totalStock.toLocaleString();
+        document.getElementById('totalSoldCount').textContent = totalSoldUnits.toLocaleString();
+        document.getElementById('totalSalesValue').textContent = formatNaira(totalSalesValue);
+        const profitDisplay = document.getElementById('cumulativeProfit');
+        profitDisplay.textContent = formatNaira(cumulativeProfit);
+        profitDisplay.parentElement.classList.toggle('loss', cumulativeProfit < 0);
+        profitDisplay.parentElement.classList.toggle('profit', cumulativeProfit >= 0);
+
+        renderTrendsChart();
+    }
+    
+    function renderTrendsChart() {
+        const ctx = document.getElementById('trendsChart').getContext('2d');
+        const salesByMonth = {};
+        const expensesByMonth = {};
+        const purchasesByMonth = {};
+
+        // Aggregate data by month (YYYY-MM)
+        const aggregate = (data, dateField, amountField, targetObject) => {
+            data.forEach(item => {
+                const month = item[dateField].substring(0, 7);
+                if (!targetObject[month]) {
+                    targetObject[month] = 0;
+                }
+                targetObject[month] += item[amountField];
+            });
+        };
+
+        aggregate(db.sales, 'date', 'totalAmount', salesByMonth);
+        aggregate(db.expenses, 'date', 'amount', expensesByMonth);
+        aggregate(db.purchases, 'date', 'totalCost', purchasesByMonth);
+
+        const labels = [...new Set([...Object.keys(salesByMonth), ...Object.keys(expensesByMonth), ...Object.keys(purchasesByMonth)])].sort();
+
+        const salesData = labels.map(label => salesByMonth[label] || 0);
+        const expensesData = labels.map(label => expensesByMonth[label] || 0);
+        const purchasesData = labels.map(label => purchasesByMonth[label] || 0);
+
+        if (trendsChart) {
+            trendsChart.destroy();
+        }
+        
+        trendsChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Sales',
+                    data: salesData,
+                    borderColor: 'var(--green)',
+                    tension: 0.1
+                }, {
+                    label: 'Expenses',
+                    data: expensesData,
+                    borderColor: 'var(--red)',
+                    tension: 0.1
+                }, {
+                    label: 'Purchases',
+                    data: purchasesData,
+                    borderColor: 'var(--yellow)',
+                    tension: 0.1
+                }]
+            }
+        });
+    }
+
+    // --- Render Product Management Page ---
+    window.renderProductManagement = function() {
+        const tbody = document.getElementById('productTable').querySelector('tbody');
+        tbody.innerHTML = '';
+        const searchTerm = document.getElementById('productSearchInput').value.toLowerCase();
+        
+        const productsToRender = db.products.filter(p => p.name.toLowerCase().includes(searchTerm));
+
+        productsToRender.forEach(p => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${p.name}</td>
+                <td>${p.category}</td>
+                <td>${formatNaira(p.buyingPrice)}</td>
+                <td>${formatNaira(p.sellingPrice)}</td>
+                <td>${p.quantityInStock}</td>
+                <td>${p.quantitySold}</td>
+                <td>${p.expiryDate || 'N/A'}</td>
+                <td>${p.supplier || 'N/A'}</td>
+                <td>
+                    ${currentUser === 'admin' ? `
+                    <button class="action-button edit-btn" onclick="editProduct('${p.id}')">Edit</button>
+                    <button class="action-button delete-btn" onclick="deleteProduct('${p.id}')">Delete</button>
+                    ` : 'View Only'}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+    document.getElementById('productSearchInput').addEventListener('input', renderProductManagement);
+
+    // --- Render Sales Management Page ---
+    window.renderSales = function() {
+        const tbody = document.getElementById('salesTable').querySelector('tbody');
+        tbody.innerHTML = '';
+        
+        const searchTerm = document.getElementById('salesSearchInput').value.toLowerCase();
+        const dateFilter = document.getElementById('salesDateFilter').value;
+
+        let filteredSales = db.sales;
+
+        if (searchTerm) {
+            filteredSales = filteredSales.filter(s => {
+                const product = db.products.find(p => p.id === s.productId);
+                return (product && product.name.toLowerCase().includes(searchTerm)) || s.invoiceNumber.toLowerCase().includes(searchTerm);
+            });
+        }
+        
+        if (dateFilter) {
+            filteredSales = filteredSales.filter(s => s.date === dateFilter);
+        }
+
+        // Show personal sales for salesRep, all for others
+        if (currentUser === 'salesRep') {
+            // Note: In a real system, you'd associate a sale with a salesRep ID.
+            // For this simulation, we'll just show all sales but with restricted actions.
+        }
+
+        filteredSales.sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by most recent
+
+        filteredSales.forEach(s => {
+            const product = db.products.find(p => p.id === s.productId);
+            if (!product) return; // Skip if product was deleted
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${s.invoiceNumber}</td>
+                <td>${s.date}</td>
+                <td>${product.name}</td>
+                <td>${s.quantity}</td>
+                <td>${formatNaira(s.totalAmount)}</td>
+                <td>${formatNaira(s.profit)}</td>
+                <td>${s.customerName}</td>
+                <td>
+                    <button class="action-button edit-btn" onclick="printReceiptFromLog('${s.invoiceNumber}')">🖨️ Receipt</button>
+                    ${(currentUser === 'admin' || currentUser === 'manager') ? `<button class="action-button delete-btn" onclick="deleteSale('${s.invoiceNumber}')">Delete</button>` : ''}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // --- Render Stock Level Page ---
+    function renderStockLevels() {
+        const tbody = document.getElementById('stockLevelTable').querySelector('tbody');
+        tbody.innerHTML = '';
+
+        db.products.forEach(p => {
+            const initialQty = p.quantityInStock + p.quantitySold;
+            if (initialQty === 0) return; // Avoid division by zero
+            
+            const stockPercent = (p.quantityInStock / initialQty) * 100;
+            let statusClass = 'stock-green';
+            let statusText = 'In Stock';
+            
+            if (stockPercent <= 30) {
+                statusClass = 'stock-red';
+                statusText = 'Low Stock';
+            } else if (stockPercent <= 60) {
+                statusClass = 'stock-yellow';
+                statusText = 'Moderate Stock';
+            }
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><span class="stock-indicator ${statusClass}"></span></td>
+                <td>${p.name}</td>
+                <td>${p.quantityInStock}</td>
+                <td>${statusText} (${stockPercent.toFixed(1)}%)</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // --- Render P&L Page ---
+    window.renderPLTracker = function() {
+        const selectedProduct = document.getElementById('plProductFilter').value;
+        const selectedMonth = document.getElementById('plMonthFilter').value; // YYYY-MM
+        
+        let revenue = 0;
+        let costOfGoods = 0;
+
+        let filteredSales = db.sales;
+        if (selectedProduct) {
+            filteredSales = filteredSales.filter(s => s.productId === selectedProduct);
+        }
+        if (selectedMonth) {
+            filteredSales = filteredSales.filter(s => s.date.startsWith(selectedMonth));
+        }
+        
+        filteredSales.forEach(s => {
+            revenue += s.totalAmount;
+            costOfGoods += s.totalCost;
+        });
+        
+        let totalExpenses = 0;
+        let filteredExpenses = db.expenses;
+        if (selectedMonth) {
+            filteredExpenses = filteredExpenses.filter(e => e.date.startsWith(selectedMonth));
+        }
+        filteredExpenses.forEach(e => {
+            totalExpenses += e.amount;
+        });
+
+        const netProfit = revenue - costOfGoods - totalExpenses;
+
+        document.getElementById('plTotalRevenue').textContent = formatNaira(revenue);
+        document.getElementById('plTotalCost').textContent = formatNaira(costOfGoods);
+        document.getElementById('plTotalExpenses').textContent = formatNaira(totalExpenses);
+        
+        const netProfitDisplay = document.getElementById('plNetProfit');
+        const netProfitCard = document.getElementById('plNetProfitCard');
+        netProfitDisplay.textContent = formatNaira(netProfit);
+        netProfitCard.classList.remove('profit', 'loss');
+        netProfitCard.classList.add(netProfit >= 0 ? 'profit' : 'loss');
+    }
+    
+    // --- Render Purchase History Page ---
+    function renderPurchaseHistory() {
+        const tbody = document.getElementById('purchaseHistoryTable').querySelector('tbody');
+        tbody.innerHTML = '';
+        db.purchases.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(p => {
+             const product = db.products.find(prod => prod.id === p.productId);
+             const tr = document.createElement('tr');
+             tr.innerHTML = `
+                <td>${p.date}</td>
+                <td>${product ? product.name : 'DELETED PRODUCT'}</td>
+                <td>${p.quantity}</td>
+                <td>${formatNaira(p.costPerItem)}</td>
+                <td>${formatNaira(p.totalCost)}</td>
+                <td>${p.supplier}</td>
+                <td>${p.paymentMode}</td>
+             `;
+             tbody.appendChild(tr);
+        });
+    }
+
+    // --- Render Capital Tracker Page ---
+    function renderCapitalTracker() {
+        let initial = db.capital.initial;
+        let added = 0;
+        let withdrawn = 0;
+
+        db.capital.transactions.forEach(t => {
+            if (t.type === 'add') added += t.amount;
+            if (t.type === 'withdraw') withdrawn += t.amount;
+        });
+
+        const balance = initial + added - withdrawn;
+        
+        document.getElementById('initialCapitalDisplay').textContent = formatNaira(initial);
+        document.getElementById('addedCapitalDisplay').textContent = formatNaira(added);
+        document.getElementById('withdrawnCapitalDisplay').textContent = formatNaira(withdrawn);
+        document.getElementById('balanceCapitalDisplay').textContent = formatNaira(balance);
+    }
+
+    // --- Render Expenses Page ---
+    function renderExpenses() {
+        const tbody = document.getElementById('expensesTable').querySelector('tbody');
+        tbody.innerHTML = '';
+        db.expenses.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(e => {
+            const tr = document.createElement('tr');
+            let description = e.description;
+            if(e.category === 'Salaries' && e.staffName) {
+                description = `${e.staffName} (ID: ${e.staffId})`;
+            }
+
+            tr.innerHTML = `
+                <td>${e.date}</td>
+                <td>${e.category}</td>
+                <td>${description}</td>
+                <td>${formatNaira(e.amount)}</td>
+                <td>
+                    <button class="action-button edit-btn" onclick="editExpense('${e.id}')">Edit</button>
+                    <button class="action-button delete-btn" onclick="deleteExpense('${e.id}')">Delete</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+
+    // =================================================================
+    // ====================== CORE LOGIC & ACTIONS =====================
+    // =================================================================
+    
+    function generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    }
+    
+    // --- Product Actions ---
+    document.getElementById('addProductBtn').addEventListener('click', () => {
+        document.getElementById('productForm').reset();
+        document.getElementById('productId').value = '';
+        document.getElementById('productModalTitle').textContent = 'Add New Product';
+        showModal('productModal');
+    });
+
+    window.editProduct = function(id) {
+        const product = db.products.find(p => p.id === id);
+        if (!product) return;
+        
+        document.getElementById('productId').value = product.id;
+        document.getElementById('productName').value = product.name;
+        document.getElementById('productCategory').value = product.category;
+        document.getElementById('buyingPrice').value = product.buyingPrice;
+        document.getElementById('sellingPrice').value = product.sellingPrice;
+        document.getElementById('quantityInStock').value = product.quantityInStock;
+        document.getElementById('expiryDate').value = product.expiryDate;
+        document.getElementById('supplierInfo').value = product.supplier;
+        
+        document.getElementById('productModalTitle').textContent = 'Edit Product';
+        // Hide purchase related fields when editing
+        document.getElementById('purchaseDate').parentElement.classList.add('hidden');
+        document.getElementById('purchasePaymentMode').parentElement.classList.add('hidden');
+
+        showModal('productModal');
+    }
+    
+    document.getElementById('productForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const id = document.getElementById('productId').value;
+        const productData = {
+            name: document.getElementById('productName').value,
+            category: document.getElementById('productCategory').value,
+            buyingPrice: parseFloat(document.getElementById('buyingPrice').value),
+            sellingPrice: parseFloat(document.getElementById('sellingPrice').value),
+            quantityInStock: parseInt(document.getElementById('quantityInStock').value),
+            expiryDate: document.getElementById('expiryDate').value,
+            supplier: document.getElementById('supplierInfo').value,
+        };
+
+        if (id) { // Editing existing product
+            const index = db.products.findIndex(p => p.id === id);
+            if (index !== -1) {
+                // Keep original sold quantity and id
+                productData.id = id;
+                productData.quantitySold = db.products[index].quantitySold;
+                db.products[index] = productData;
+            }
+        } else { // Adding new product
+            productData.id = generateId();
+            productData.quantitySold = 0;
+            db.products.push(productData);
+
+            // Log the initial purchase
+            const purchaseData = {
+                id: generateId(),
+                productId: productData.id,
+                date: document.getElementById('purchaseDate').value,
+                quantity: productData.quantityInStock,
+                costPerItem: productData.buyingPrice,
+                totalCost: productData.buyingPrice * productData.quantityInStock,
+                supplier: productData.supplier,
+                paymentMode: document.getElementById('purchasePaymentMode').value,
+            };
+            db.purchases.push(purchaseData);
+        }
+        
+        saveDatabase();
+        renderAll();
+        closeModal('productModal');
+    });
+
+    window.deleteProduct = function(id) {
+        if (confirm('Are you sure you want to delete this product? This will also remove associated sales and purchase history.')) {
+            db.products = db.products.filter(p => p.id !== id);
+            db.sales = db.sales.filter(s => s.productId !== id);
+            db.purchases = db.purchases.filter(p => p.productId !== id);
+            saveDatabase();
+            renderAll();
+        }
+    }
+
+    // --- Sale Actions ---
+    document.getElementById('recordSaleBtn').addEventListener('click', () => {
+        const saleProductSelect = document.getElementById('saleProduct');
+        saleProductSelect.innerHTML = '<option value="">Select a product</option>';
+        db.products.filter(p => p.quantityInStock > 0).forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.id;
+            option.textContent = `${p.name} (${p.quantityInStock} available)`;
+            saleProductSelect.appendChild(option);
+        });
+        document.getElementById('saleForm').reset();
+        document.getElementById('saleError').textContent = '';
+        document.getElementById('availableStockNotice').textContent = '';
+        showModal('saleModal');
+    });
+
+    document.getElementById('saleProduct').addEventListener('change', (e) => {
+        const productId = e.target.value;
+        const product = db.products.find(p => p.id === productId);
+        if(product) {
+            document.getElementById('saleQuantity').max = product.quantityInStock;
+            document.getElementById('availableStockNotice').textContent = `Max quantity: ${product.quantityInStock}`;
+        }
+    });
+
+    document.getElementById('saleForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const productId = document.getElementById('saleProduct').value;
+        const quantity = parseInt(document.getElementById('saleQuantity').value);
+        const customerName = document.getElementById('customerName').value;
+        const product = db.products.find(p => p.id === productId);
+        
+        if (!product || quantity <= 0) return;
+        if (quantity > product.quantityInStock) {
+            document.getElementById('saleError').textContent = 'Error: Not enough stock available.';
+            return;
+        }
+
+        // Update stock
+        product.quantityInStock -= quantity;
+        product.quantitySold += quantity;
+
+        // Record sale
+        const saleRecord = {
+            invoiceNumber: `INV-${Date.now()}`,
+            date: new Date().toISOString().split('T')[0],
+            productId: product.id,
+            quantity: quantity,
+            pricePerUnit: product.sellingPrice,
+            totalAmount: product.sellingPrice * quantity,
+            totalCost: product.buyingPrice * quantity,
+            profit: (product.sellingPrice - product.buyingPrice) * quantity,
+            customerName: customerName
+        };
+        db.sales.push(saleRecord);
+
+        saveDatabase();
+        renderAll();
+        closeModal('saleModal');
+        showReceipt(saleRecord.invoiceNumber);
+    });
+    
+    window.deleteSale = function(invoiceNumber) {
+        if(confirm('Are you sure you want to delete this sale? This will add the stock back.')) {
+            const saleIndex = db.sales.findIndex(s => s.invoiceNumber === invoiceNumber);
+            if(saleIndex > -1) {
+                const sale = db.sales[saleIndex];
+                const product = db.products.find(p => p.id === sale.productId);
+                if (product) {
+                    product.quantityInStock += sale.quantity;
+                    product.quantitySold -= sale.quantity;
+                }
+                db.sales.splice(saleIndex, 1);
+                saveDatabase();
+                renderAll();
+            }
+        }
+    }
+
+    // --- Receipt Functions ---
+    function showReceipt(invoiceNumber) {
+        const sale = db.sales.find(s => s.invoiceNumber === invoiceNumber);
+        if (!sale) return;
+        const product = db.products.find(p => p.id === sale.productId);
+        if (!product) return;
+
+        document.getElementById('receiptInvoice').textContent = sale.invoiceNumber;
+        document.getElementById('receiptDate').textContent = new Date(sale.date).toLocaleDateString();
+        document.getElementById('receiptCustomerName').textContent = sale.customerName;
+        
+        const itemsTbody = document.getElementById('receiptItems');
+        itemsTbody.innerHTML = `
+            <tr>
+                <td>${product.name}</td>
+                <td>${sale.quantity}</td>
+                <td>${formatNaira(sale.pricePerUnit)}</td>
+                <td>${formatNaira(sale.totalAmount)}</td>
+            </tr>
+        `;
+        document.getElementById('receiptTotal').textContent = `TOTAL: ${formatNaira(sale.totalAmount)}`;
+
+        showModal('receiptModal');
+    }
+
+    window.printReceiptFromLog = function(invoiceNumber) {
+        showReceipt(invoiceNumber);
+    }
+    
+    // --- Capital Actions ---
+    document.getElementById('capitalForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const type = document.getElementById('capitalChangeType').value;
+        const amount = parseFloat(document.getElementById('capitalAmount').value);
+        const description = document.getElementById('capitalDescription').value;
+
+        // If this is the very first transaction and it's an 'add', set it as initial capital.
+        if(db.capital.initial === 0 && db.capital.transactions.length === 0 && type === 'add'){
+            db.capital.initial = amount;
+        } else {
+            db.capital.transactions.push({
+                type,
+                amount,
+                description,
+                date: new Date().toISOString()
+            });
+        }
+        
+        saveDatabase();
+        renderCapitalTracker();
+        e.target.reset();
+    });
+
+    // --- Expense Actions ---
+    document.getElementById('addExpenseBtn').addEventListener('click', () => {
+        document.getElementById('expenseForm').reset();
+        document.getElementById('expenseId').value = '';
+        document.getElementById('expenseModalTitle').textContent = 'Add New Expense';
+        document.getElementById('staffDetailsContainer').classList.add('hidden');
+        showModal('expenseModal');
+    });
+
+    document.getElementById('expenseCategory').addEventListener('change', e => {
+        const container = document.getElementById('staffDetailsContainer');
+        if (e.target.value === 'Salaries') {
+            container.classList.remove('hidden');
+        } else {
+            container.classList.add('hidden');
+        }
+    });
+    
+    window.toggleSalaryVisibility = function(element) {
+        const input = element.previousElementSibling;
+        if (input.type === 'password') {
+            input.type = 'text';
+            element.textContent = '🙈';
+        } else {
+            input.type = 'password';
+            element.textContent = '👁️';
+        }
+    };
+
+    document.getElementById('expenseForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const id = document.getElementById('expenseId').value;
+        const expenseData = {
+            date: document.getElementById('expenseDate').value,
+            category: document.getElementById('expenseCategory').value,
+            amount: parseFloat(document.getElementById('expenseAmount').value),
+            description: document.getElementById('expenseDescription').value,
+            staffName: document.getElementById('staffName').value,
+            staffId: document.getElementById('staffId').value,
+        };
+
+        if(id) {
+            const index = db.expenses.findIndex(ex => ex.id === id);
+            if(index !== -1) {
+                expenseData.id = id;
+                db.expenses[index] = expenseData;
+            }
+        } else {
+            expenseData.id = generateId();
+            db.expenses.push(expenseData);
+        }
+        
+        saveDatabase();
+        renderAll();
+        closeModal('expenseModal');
+    });
+    
+    window.editExpense = function(id) {
+        const expense = db.expenses.find(e => e.id === id);
+        if (!expense) return;
+        
+        document.getElementById('expenseId').value = expense.id;
+        document.getElementById('expenseDate').value = expense.date;
+        document.getElementById('expenseCategory').value = expense.category;
+        document.getElementById('expenseAmount').value = expense.amount;
+        document.getElementById('expenseDescription').value = expense.description;
+        document.getElementById('staffName').value = expense.staffName || '';
+        document.getElementById('staffId').value = expense.staffId || '';
+
+        if(expense.category === 'Salaries') {
+            document.getElementById('staffDetailsContainer').classList.remove('hidden');
+        } else {
+             document.getElementById('staffDetailsContainer').classList.add('hidden');
+        }
+        
+        document.getElementById('expenseModalTitle').textContent = 'Edit Expense';
+        showModal('expenseModal');
+    }
+
+    window.deleteExpense = function(id) {
+        if(confirm('Are you sure you want to delete this expense record?')) {
+            db.expenses = db.expenses.filter(e => e.id !== id);
+            saveDatabase();
+            renderAll();
+        }
+    }
+
+    // --- Admin Settings Actions ---
+    document.getElementById('changePinForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const currentPin = document.getElementById('currentPin').value;
+        const newPin = document.getElementById('newPin').value;
+        const confirmNewPin = document.getElementById('confirmNewPin').value;
+        const statusEl = document.getElementById('pinChangeStatus');
+
+        if (currentPin !== db.settings.adminPin) {
+            statusEl.textContent = 'Current PIN is incorrect.';
+            statusEl.style.color = 'red';
+            return;
+        }
+        if (newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
+            statusEl.textContent = 'New PIN must be 4 digits.';
+            statusEl.style.color = 'red';
+            return;
+        }
+        if (newPin !== confirmNewPin) {
+            statusEl.textContent = 'New PINs do not match.';
+            statusEl.style.color = 'red';
+            return;
+        }
+
+        db.settings.adminPin = newPin;
+        saveDatabase();
+        statusEl.textContent = 'PIN changed successfully!';
+        statusEl.style.color = 'green';
+        e.target.reset();
+    });
+    
+    // --- Reporting & Exporting ---
+    function exportToCsv(filename, rows) {
+        const separator = ',';
+        const keys = Object.keys(rows[0]);
+        const csvContent =
+            keys.join(separator) +
+            '\n' +
+            rows.map(row => {
+                return keys.map(k => {
+                    let cell = row[k] === null || row[k] === undefined ? '' : row[k];
+                    cell = cell instanceof Date 
+                        ? cell.toLocaleString()
+                        : cell.toString().replace(/"/g, '""');
+                    if (cell.search(/("|,|\n)/g) >= 0) {
+                        cell = `"${cell}"`;
+                    }
+                    return cell;
+                }).join(separator);
+            }).join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    }
+
+    document.getElementById('downloadPurchaseCsvBtn').addEventListener('click', () => {
+        if(db.purchases.length === 0) {
+            alert('No purchase data to export.');
+            return;
+        }
+        const data = db.purchases.map(p => {
+            const product = db.products.find(prod => prod.id === p.productId);
+            return {
+                Date: p.date,
+                Product: product ? product.name : 'N/A',
+                Quantity: p.quantity,
+                Cost_Per_Item: p.costPerItem,
+                Total_Cost: p.totalCost,
+                Supplier: p.supplier,
+                Payment_Mode: p.paymentMode
+            }
+        });
+        exportToCsv('purchase_history.csv', data);
+    });
+
+    async function exportToPdf(title, head, body) {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        doc.text(title, 14, 16);
+        doc.autoTable({
+            startY: 20,
+            head: [head],
+            body: body,
+        });
+
+        doc.save(`${title.replace(/\s+/g, '_').toLowerCase()}.pdf`);
+    }
+
+    document.getElementById('downloadPurchasePdfBtn').addEventListener('click', () => {
+        if(db.purchases.length === 0) { alert('No purchase data to export.'); return; }
+        const head = ['Date', 'Product', 'Qty', 'Cost/Item', 'Total Cost', 'Supplier', 'Payment'];
+        const body = db.purchases.map(p => {
+             const product = db.products.find(prod => prod.id === p.productId);
+             return [
+                p.date,
+                product ? product.name : 'N/A',
+                p.quantity,
+                formatNaira(p.costPerItem),
+                formatNaira(p.totalCost),
+                p.supplier,
+                p.paymentMode
+             ];
+        });
+        exportToPdf('Purchase History', head, body);
+    });
+
+    document.getElementById('generateReportBtn').addEventListener('click', () => {
+        const month = document.getElementById('reportMonthSelector').value;
+        if(!month) { alert('Please select a month for the report.'); return; }
+        
+        const salesInMonth = db.sales.filter(s => s.date.startsWith(month));
+        const expensesInMonth = db.expenses.filter(e => e.date.startsWith(month));
+
+        const totalRevenue = salesInMonth.reduce((sum, s) => sum + s.totalAmount, 0);
+        const totalProfit = salesInMonth.reduce((sum, s) => sum + s.profit, 0);
+        const totalExpenses = expensesInMonth.reduce((sum, e) => sum + e.amount, 0);
+        const netProfit = totalProfit - totalExpenses; // Note: This might differ from P&L, which uses COGS. Gross Profit - Expenses.
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        doc.setFontSize(18);
+        doc.text(`Monthly Report for ${month}`, 14, 22);
+        
+        doc.setFontSize(12);
+        doc.text(`Total Revenue: ${formatNaira(totalRevenue)}`, 14, 32);
+        doc.text(`Gross Profit from Sales: ${formatNaira(totalProfit)}`, 14, 38);
+        doc.text(`Total Expenses: ${formatNaira(totalExpenses)}`, 14, 44);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Net Profit: ${formatNaira(netProfit)}`, 14, 52);
+        doc.setFont('helvetica', 'normal');
+
+        if(salesInMonth.length > 0) {
+            doc.autoTable({
+                startY: 60,
+                head: [['Date', 'Product', 'Qty', 'Total', 'Profit']],
+                body: salesInMonth.map(s => {
+                    const product = db.products.find(p => p.id === s.productId);
+                    return [s.date, product ? product.name : 'N/A', s.quantity, formatNaira(s.totalAmount), formatNaira(s.profit)];
+                }),
+                didDrawPage: (data) => { doc.text('Sales Details', 14, data.cursor.y - 10); }
+            });
+        }
+        
+        if(expensesInMonth.length > 0) {
+            doc.autoTable({
+                startY: doc.previousAutoTable.finalY + 15,
+                head: [['Date', 'Category', 'Description', 'Amount']],
+                body: expensesInMonth.map(e => [e.date, e.category, e.description, formatNaira(e.amount)]),
+                didDrawPage: (data) => { doc.text('Expense Details', 14, data.cursor.y - 10); }
+            });
+        }
+
+        doc.save(`report_${month}.pdf`);
+    });
+
+    // =================================================================
+    // ====================== UTILITY FUNCTIONS ========================
+    // =================================================================
+    
+    function populateFilters() {
+        const plProductFilter = document.getElementById('plProductFilter');
+        plProductFilter.innerHTML = '<option value="">All Products</option>';
+        db.products.forEach(p => {
+            plProductFilter.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+        });
+    }
+
+    // --- Page Navigation ---
+    function showPage(pageId) {
+        document.querySelectorAll('.page').forEach(page => page.classList.add('hidden'));
+        document.getElementById(pageId).classList.remove('hidden');
+        document.getElementById('mainMenu').classList.add('hidden');
+    }
+
+    document.querySelectorAll('.menu-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            showPage(e.target.dataset.page);
+        });
+    });
+
+    // --- Modal Handling ---
+    function showModal(modalId) { document.getElementById(modalId).classList.remove('hidden'); }
+    function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
+    
+    document.querySelectorAll('.modal-close').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.target.closest('.modal').classList.add('hidden');
+        });
+    });
+    
+    // --- Event Listeners ---
+    document.getElementById('menuToggle').addEventListener('click', () => {
+        document.getElementById('mainMenu').classList.toggle('hidden');
+    });
+
+    document.getElementById('logoutButton').addEventListener('click', logout);
+
+
+    // =================================================================
+    // ===================== APPLICATION STARTUP =======================
+    // =================================================================
+    loadDatabase();
+    
+});
+</script>
+
+</body>
+</html>
