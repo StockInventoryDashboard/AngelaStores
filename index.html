@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Angela Stores - Inventory Dashboard</title>
+    <title>Buisness Manager Dashboard</title>
     <!-- Include Chart.js and jsPDF libraries from CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -381,7 +381,7 @@
 
     <!-- ======== LOGIN SCREEN ======== -->
     <div id="loginScreen">
-        <h1>Angela Stores Dashboard</h1>
+        <h1>Buisness Dashboard</h1>
         <p>Select Your Role</p>
         <button class="role-button" onclick="selectRole('admin')">Admin</button>
         <button class="role-button" onclick="selectRole('manager')">Manager</button>
@@ -397,7 +397,7 @@
     <div id="appContainer" class="hidden">
         <!-- Header -->
         <header class="main-header">
-            <h1>Angela Stores</h1>
+            <h1>Buisness Manager</h1>
             <div class="header-controls">
                 <span id="currentUserRole"></span>
                 <button id="logoutButton">Logout</button>
@@ -775,7 +775,7 @@
     <div id="receiptModal" class="modal hidden">
         <div class="modal-content">
             <div id="receiptModalContent">
-                <h2>Angela Stores - OFFICIAL RECEIPT</h2>
+                <h2>Buisness Manager OFFICIAL RECEIPT</h2>
                 <p><strong>Invoice No:</strong> <span id="receiptInvoice"></span></p>
                 <p><strong>Date:</strong> <span id="receiptDate"></span></p>
                 <p><strong>Customer:</strong> <span id="receiptCustomerName"></span></p>
@@ -1781,4 +1781,5 @@ document.addEventListener('DOMContentLoaded', () => {
 </body>
 
 </html>
+
 
